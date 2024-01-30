@@ -3,27 +3,28 @@ import matplotlib.pyplot as plt
 
 
 class Modelling:
-    def __init__(self, M, n):
+    def __init__(self, M, K):
         self.G = nx.DiGraph()  # Le graphe dirigé
         self.M = M  # Le nombre de services à atteindre avant l'accès aux données sensibles
-        self.n = n  # Le nombre de leurres pour chaque service
+        # self.n = n  # Le nombre de leurres pour chaque service
+        self.n = int(K / (M-1))  # Le nombre de leurres pour chaque service
 
     def create_graph(self):
 
         # Id unique du noeud
         node_id = 0
         # Probabilité de transition pour chaque arrête
-        proba = 1/self.n
+        proba = 1/(self.n+1)
 
         for i in range(0, self.M):
             node_id += 1
             self.G.add_node(str(node_id))
             if 1 < node_id:  # Si ce noeud n'est pas le premier, ça veut dire qu'on peut le relier avec le précédent
                 self.G.add_edge(str(node_id-1), str(node_id), weight=proba)
-
-            for j in range(1, self.n):  # Pour chaque noeud, on créé n leurres tous reliés au service
-                self.G.add_node(str(node_id) + "," + str(j))
-                self.G.add_edge(str(node_id), str(node_id) + "," + str(j), weight=proba)
+            if node_id < self.M:
+                for j in range(1, self.n+1):  # Pour chaque noeud, on créé n leurres tous reliés au service
+                    self.G.add_node(str(node_id) + "," + str(j))
+                    self.G.add_edge(str(node_id), str(node_id) + "," + str(j), weight=proba)
 
         return self.G
 
@@ -51,10 +52,21 @@ class Modelling:
             x += 1
 
         # Couleur initiale des nœuds
-        node_colors = ['blue' for _ in self.G.nodes]
+        #node_colors = ['green' for _ in self.G.nodes]
+        node_colors = []
+
+        for node in self.G.nodes:
+            if node == '1':
+                node_colors.append('red')
+            elif len(node) > 1:
+                node_colors.append('grey')
+            elif node == str(self.M):
+                node_colors.append('green')
+            else:
+                node_colors.append('cyan')
 
         # Modification de la couleur du noeud de départ en rouge
-        node_colors[list(self.G.nodes).index('1')] = 'red'
+        #node_colors[list(self.G.nodes).index('1')] = 'red'
 
         nx.draw(self.G, pos=pos, with_labels=True, font_weight='bold', node_size=700, node_color=node_colors)
 
