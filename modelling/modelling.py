@@ -21,7 +21,7 @@ class Modelling:
             if 1 < node_id:  # Si ce noeud n'est pas le premier, ça veut dire qu'on peut le relier avec le précédent
                 self.G.add_edge(str(node_id-1), str(node_id), weight=proba)
 
-            for j in range(1, self.n+1):  # Pour chaque noeud, on créé n leurres tous reliés au service
+            for j in range(1, self.n):  # Pour chaque noeud, on créé n leurres tous reliés au service
                 self.G.add_node(str(node_id) + "," + str(j))
                 self.G.add_edge(str(node_id), str(node_id) + "," + str(j), weight=proba)
 
