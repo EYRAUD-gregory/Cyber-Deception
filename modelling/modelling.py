@@ -9,7 +9,7 @@ class Modelling:
         # self.n = n  # Le nombre de leurres pour chaque service
         self.n = int(K / (M-1))  # Le nombre de leurres pour chaque service
 
-    def create_graph(self):
+    def create_graph(self): # TODO mettre un type à chaque noeud pour savoir ce que c'est (et surtout pouvoir définir l'état final)
 
         # Id unique du noeud
         node_id = 0
@@ -18,12 +18,17 @@ class Modelling:
 
         for i in range(0, self.M):
             node_id += 1
-            self.G.add_node(str(node_id))
+            if node_id == self.M:
+                self.G.add_node(str(node_id), type='Goal')
+            elif node_id == 1:
+                self.G.add_node(str(node_id), type='Start')
+            else:
+                self.G.add_node(str(node_id), type='Service')
             if 1 < node_id:  # Si ce noeud n'est pas le premier, ça veut dire qu'on peut le relier avec le précédent
                 self.G.add_edge(str(node_id-1), str(node_id), weight=proba)
             if node_id < self.M:
                 for j in range(1, self.n+1):  # Pour chaque noeud, on créé n leurres tous reliés au service
-                    self.G.add_node(str(node_id) + "," + str(j))
+                    self.G.add_node(str(node_id) + "," + str(j), type="Honeypot")
                     self.G.add_edge(str(node_id), str(node_id) + "," + str(j), weight=proba)
 
         return self.G
@@ -55,15 +60,15 @@ class Modelling:
         #node_colors = ['green' for _ in self.G.nodes]
         node_colors = []
 
-        for node in self.G.nodes:
-            if node == '1':
+        for type in nx.get_node_attributes(self.G, 'type').values():
+            if type == 'Start':
                 node_colors.append('red')
-            elif len(node) > 1:
-                node_colors.append('grey')
-            elif node == str(self.M):
+            elif type == 'Service':
+                node_colors.append('cyan')
+            elif type == 'Goal':
                 node_colors.append('green')
             else:
-                node_colors.append('cyan')
+                node_colors.append('grey')
 
         # Modification de la couleur du noeud de départ en rouge
         #node_colors[list(self.G.nodes).index('1')] = 'red'
