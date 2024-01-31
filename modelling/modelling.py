@@ -9,8 +9,7 @@ class Modelling:
         # self.n = n  # Le nombre de leurres pour chaque service
         self.n = int(K / (M-1))  # Le nombre de leurres pour chaque service
 
-    def create_graph(self): # TODO mettre un type à chaque noeud pour savoir ce que c'est (et surtout pouvoir définir l'état final)
-
+    def create_graph(self):
         # Id unique du noeud
         node_id = 0
         # Probabilité de transition pour chaque arrête
