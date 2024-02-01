@@ -3,11 +3,12 @@ import matplotlib.pyplot as plt
 
 
 class Modelling:
-    def __init__(self, M, K):
+    def __init__(self, M=5, K=16):
         self.G = nx.DiGraph()  # Le graphe dirigé
         self.M = M  # Le nombre de services à atteindre avant l'accès aux données sensibles
-        # self.n = n  # Le nombre de leurres pour chaque service
         self.n = int(K / (M-1))  # Le nombre de leurres pour chaque service
+        self.pos = {}
+        self.node_colors = []
 
     def create_graph(self):
         # Id unique du noeud
@@ -30,48 +31,43 @@ class Modelling:
                     self.G.add_node(str(node_id) + "," + str(j), type="Honeypot")
                     self.G.add_edge(str(node_id), str(node_id) + "," + str(j), weight=proba)
 
+        # Spécification des positions des nœuds
+        self.init_pos()
+
+        # Couleurs initiales des nœuds
+        self.init_nodes_color()
+
         return self.G
 
-    def plot_graph(self):
-        # Spécification des positions des nœuds
-        pos = {}
+    def init_nodes_color(self):
+        for type in nx.get_node_attributes(self.G, 'type').values():
+            if type == 'Start':
+                self.node_colors.append('purple')
+            elif type == 'Service':
+                self.node_colors.append('cyan')
+            elif type == 'Goal':
+                self.node_colors.append('green')
+            else:
+                self.node_colors.append('grey')
 
-        # Position des noeuds "parents"
+    def init_pos(self):
+        # Position des services
         x, y = 0, 0
-
         # Positions des leurres
         x_sub = -0.333
         y_sub = -1
-
         # Id unique des noeuds
         node_id = 0
-
         # Positionnement de chaque noeud dans le graph
         for i in range(0, self.M):
             node_id += 1
-            pos[str(node_id)] = (x, y)
-            for j in range(1, self.n+1):
-                pos[str(node_id) + "," + str(j)] = (x_sub, y_sub)
-                x_sub += 1/self.n
+            self.pos[str(node_id)] = (x, y)
+            for j in range(1, self.n + 1):
+                self.pos[str(node_id) + "," + str(j)] = (x_sub, y_sub)
+                x_sub += 1 / self.n
             x += 1
 
-        # Couleur initiale des nœuds
-        #node_colors = ['green' for _ in self.G.nodes]
-        node_colors = []
-
-        for type in nx.get_node_attributes(self.G, 'type').values():
-            if type == 'Start':
-                node_colors.append('red')
-            elif type == 'Service':
-                node_colors.append('cyan')
-            elif type == 'Goal':
-                node_colors.append('green')
-            else:
-                node_colors.append('grey')
-
-        # Modification de la couleur du noeud de départ en rouge
-        #node_colors[list(self.G.nodes).index('1')] = 'red'
-
-        nx.draw(self.G, pos=pos, with_labels=True, font_weight='bold', node_size=700, node_color=node_colors)
+    def plot_graph(self):
+        nx.draw(self.G, pos=self.pos, with_labels=True, font_weight='bold', node_size=700, node_color=self.node_colors)
 
         plt.show()
