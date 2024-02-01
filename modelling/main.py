@@ -5,7 +5,7 @@ import numpy as np
 
 if __name__ == '__main__':
 
-    attacker = Attacker(M=50, K=49, know_M=False, is_uniform=True)
+    attacker = Attacker(M=5, K=12, know_M=False, is_uniform=True)
 
     attacker.model.plot_graph()
 
