@@ -25,7 +25,7 @@ class Attacker:
         if self.is_uniform:
             return 0.1  # probabilité uniforme de retour au point de départ
         if self.M is None:
-            return 1 / (X + 1)
+            return 1 / (X + 1)  # X : son degré d'avancement
         return 1 / (self.M - X + 1)
 
     def move(self):
