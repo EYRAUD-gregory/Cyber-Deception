@@ -4,6 +4,9 @@ from matplotlib.animation import FuncAnimation
 import random
 from modelling import Modelling
 
+from IPython.display import HTML
+
+
 class Attacker:
     def __init__(self, M, K, know_M=False, is_uniform=False):
         self.model = Modelling(M, K)
@@ -70,10 +73,12 @@ class Attacker:
         # Créer l'animation
         self.ani = FuncAnimation(self.fig, self.update_animation, frames=frames, interval=interval)
 
-        # Afficher l'animation
+        # Nettoyer la figure
         plt.show()
 
-        return self.nb_movement
+        # Afficher l'animation dans le notebook
+        return HTML(self.ani.to_html5_video())
+
 
     def attack(self, with_graph=False):
         cpt = 1
