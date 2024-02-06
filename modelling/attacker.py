@@ -20,10 +20,11 @@ class Attacker:
         self.nb_movement = 0  # Nombre de déplacement de l'attaquant
         self.fig, self.ax = plt.subplots()  # Utilisé pour afficher l'animation
         self.ani = None  # L'animation
+        self.p = 0.1
 
     def proba_return(self, X):
         if self.is_uniform:
-            return 0.1  # probabilité uniforme de retour au point de départ
+            return self.p  # probabilité uniforme de retour au point de départ
         if self.M is None:
             return 1 / (X + 1)  # X : son degré d'avancement
         return 1 / (self.M - X + 1)
@@ -81,8 +82,8 @@ class Attacker:
 
         self.nb_movement = 0
 
-        while (self.M is not None and self.position != str(self.M)) or (
-                self.M is None and self.G.nodes[self.position]['type'] != 'Goal'):
+        while ((self.M is not None and self.position != str(self.M)) or (
+                self.M is None and self.G.nodes[self.position]['type'] != 'Goal')) and self.nb_movement < 1e4:
             return_to_start = self.go_back()
             if return_to_start:
                 self.position = '1'
