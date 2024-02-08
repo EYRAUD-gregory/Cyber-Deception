@@ -39,6 +39,14 @@ def calculate_stats(attacker, all_p=None, all_K=None):
         return means, stds
 
 
+def calculate_confidence_interval(means, stds):
+    for i in range(len(means)):
+        # Calcul de l'intervalle de confiance à 95%
+        confidence_interval = stats.norm.interval(0.95, loc=means[i], scale=stds[i] / np.sqrt(20000))
+
+        print("Moyenne des déplacements de l'attaquant:", means[i])
+        print("Intervalle de confiance (95%):", confidence_interval)
+
 def print_stats(attacker, tries):
     print(f"Pour M = {attacker.M}, K = {attacker.K} et une probabilité de retour de {attacker.p} : ")
     print(f"Nombre moyen de déplacement : {tries.mean()}")
