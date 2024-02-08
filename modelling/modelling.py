@@ -1,14 +1,14 @@
 import networkx as nx
 import matplotlib.pyplot as plt
-
+import math
 
 class Modelling:
     def __init__(self, M=5, K=16):
         self.G = nx.DiGraph()  # Le graphe dirigé
         self.M = M  # Le nombre de services à atteindre avant l'accès aux données sensibles
-        self.n = int(K / (M-1))  # Le nombre de leurres pour chaque service
-        self.pos = {}  # La position de chaque noeud dans le graphe
-        self.node_colors = []  # La couleur de chaque noeud dans le graphe
+        self.n = math.floor(K / (M-1))  # Le nombre de leurres pour chaque service
+        self.pos = {}  # La position de chaque noeud dans le graphe (esthétique)
+        self.node_colors = []  # La couleur de chaque noeud dans le graphe (esthétique)
 
     def create_graph(self):
         # Id unique du noeud

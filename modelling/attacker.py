@@ -18,9 +18,9 @@ class Attacker:
         self.is_uniform = is_uniform  # Probabilité de retour uniforme
         self.position = '1'  # Position de l'attaquant
         self.nb_movement = 0  # Nombre de déplacement de l'attaquant
-        self.fig, self.ax = plt.subplots()  # Utilisé pour afficher l'animation
+        #self.fig, self.ax = plt.subplots()  # Utilisé pour afficher l'animation
         self.ani = None  # L'animation
-        self.p = 0.1
+        self.p = 0.2 # probabilité de retour fixe
 
     def proba_return(self, X):
         if self.is_uniform:
@@ -37,7 +37,7 @@ class Attacker:
             next_service = random.choices(services, probabilities)[0] # Choix aléatoire du prochain service visité
             return next_service
 
-        return self.position # TODO peut-être devoir changer ça
+        return self.position
 
     def go_back(self):
         # Pour définir si l'attaquant doit revenir au point de départ ou non
@@ -78,16 +78,19 @@ class Attacker:
         # return HTML(self.ani.to_jshtml())
 
     def attack(self, with_graph=False):
-        self.position = '1'
+        self.position = '1'  # Postion de départ
 
-        self.nb_movement = 0
+        self.nb_movement = 0  # Nombre total de mouvement réalisé par l'attaquant
 
+        # Tant qu'on est pas arrivé à la destination
         while ((self.M is not None and self.position != str(self.M)) or (
-                self.M is None and self.G.nodes[self.position]['type'] != 'Goal')) and self.nb_movement < 1e4:
-            return_to_start = self.go_back()
-            if return_to_start:
-                self.position = '1'
+                self.M is None and self.G.nodes[self.position]['type'] != 'Goal')):
+            #if self.position != '1':
+            return_to_start = self.go_back()  # Est-ce qu'on retourne en arrière?
+            if return_to_start:  # Si oui
+                self.position = '1'  # Retour au point de départ
+                self.nb_movement += 1  # On le compte comme un mouvement
                 continue
-            self.position = self.move()
-            self.nb_movement += 1
+            self.position = self.move()  # On avance
+            self.nb_movement += 1  # Incrément
         return self.nb_movement
