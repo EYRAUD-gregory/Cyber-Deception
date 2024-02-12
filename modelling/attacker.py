@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import random
 from modelling import Modelling
+from math import exp
 
 from IPython.display import HTML
 
@@ -18,16 +19,21 @@ class Attacker:
         self.is_uniform = is_uniform  # Probabilité de retour uniforme
         self.position = '1'  # Position de l'attaquant
         self.nb_movement = 0  # Nombre de déplacement de l'attaquant
-        #self.fig, self.ax = plt.subplots()  # Utilisé pour afficher l'animation
+        self.nb_movement_try = 0  # Nombre de mouvement pour une tentative
+        self.fig, self.ax = plt.subplots()  # Utilisé pour afficher l'animation
         self.ani = None  # L'animation
-        self.p = 0.2 # probabilité de retour fixe
+        self.p = 1/(M-1)  # probabilité de retour fixe
 
-    def proba_return(self, X):
-        if self.is_uniform:
-            return self.p  # probabilité uniforme de retour au point de départ
+    def proba_return(self):
         if self.M is None:
-            return 1 / (X + 1)  # X : son degré d'avancement
-        return 1 / (self.M - X + 1)
+            if self.is_uniform:
+                return self.p  # probabilité uniforme de retour au point de départ
+            #X = -self.nb_movement_try
+            X = -0.1 * self.nb_movement_try
+            return 1 - exp(X)
+            #return exp(X)
+        #print("Length = ", self.nb_movement%self.M)
+        #return (self.nb_movement % self.M) == 0
 
     def move(self):
         if self.G.nodes[self.position]['type'] != 'Honeypot':  # Si le noeud actuel n'est pas un Honeypot
@@ -41,7 +47,7 @@ class Attacker:
 
     def go_back(self):
         # Pour définir si l'attaquant doit revenir au point de départ ou non
-        return random.uniform(0, 1) < self.proba_return(int(self.position.split(',')[0]))
+        return random.uniform(0, 1) < self.proba_return()
 
     def update_animation(self, frame):
         self.ax.clear()
@@ -75,22 +81,27 @@ class Attacker:
         plt.show()  # Nettoyer la figure
 
         # Afficher l'animation dans le notebook
-        # return HTML(self.ani.to_jshtml())
+        return HTML(self.ani.to_jshtml())
 
     def attack(self, with_graph=False):
         self.position = '1'  # Postion de départ
 
         self.nb_movement = 0  # Nombre total de mouvement réalisé par l'attaquant
+        self.nb_movement_try = 0  # Nombre total de mouvement réalisé par l'attaquant
 
         # Tant qu'on est pas arrivé à la destination
         while ((self.M is not None and self.position != str(self.M)) or (
                 self.M is None and self.G.nodes[self.position]['type'] != 'Goal')):
-            #if self.position != '1':
-            return_to_start = self.go_back()  # Est-ce qu'on retourne en arrière?
-            if return_to_start:  # Si oui
-                self.position = '1'  # Retour au point de départ
-                self.nb_movement += 1  # On le compte comme un mouvement
-                continue
+            #self.nb_movement += 1  # On le compte comme un mouvement
+
+            if self.position != '1':
+                return_to_start = self.go_back()  # Est-ce qu'on retourne en arrière?
+                if return_to_start:  # Si oui
+                    self.position = '1'  # Retour au point de départ
+                    self.nb_movement += 1
+                    self.nb_movement_try = 0
+                    continue
             self.position = self.move()  # On avance
             self.nb_movement += 1  # Incrément
+            self.nb_movement_try += 1  # Incrément
         return self.nb_movement

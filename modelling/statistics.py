@@ -5,11 +5,16 @@ from attacker import Attacker
 
 def simulate(attacker):
     nb_tries = 20000
+    min, max = 0, 0
     tries = np.zeros(nb_tries)
     for i in range(0, nb_tries):
         if ((i / nb_tries) * 100) % 10 == 0:
             print(f"Progression de la simulation d'attaque : {(i / nb_tries) * 100}%")
         tries[i] = attacker.attack()
+        if tries[i] < min:
+            min = tries[i]
+        if tries[i] > max:
+            max = tries[i]
     return tries
 
 
@@ -40,15 +45,25 @@ def calculate_stats(attacker, all_p=None, all_K=None):
 
 
 def calculate_confidence_interval(means, stds):
+    all_confidence_intervals = []
     for i in range(len(means)):
         # Calcul de l'intervalle de confiance à 95%
         confidence_interval = stats.norm.interval(0.95, loc=means[i], scale=stds[i] / np.sqrt(20000))
 
-        print("Moyenne des déplacements de l'attaquant:", means[i])
-        print("Intervalle de confiance (95%):", confidence_interval)
+        all_confidence_intervals.append(confidence_interval)
+
+    return all_confidence_intervals
+        #print("Moyenne des déplacements de l'attaquant:", means[i])
+        #print("Intervalle de confiance (95%):", confidence_interval)
+
 
 def print_stats(attacker, tries):
-    print(f"Pour M = {attacker.M}, K = {attacker.K} et une probabilité de retour de {attacker.p} : ")
+    str = f"Pour M = {attacker.model.M}, K = {attacker.model.n*(attacker.model.M-1)} et une probabilité de retour "
+    if attacker.is_uniform:
+        str += f"de {attacker.p} :"
+    else:
+        str += "variable selon la taille du chemin parcouru (1 - e^(0.1*k))"
+    print(str)
     print(f"Nombre moyen de déplacement : {tries.mean()}")
     print(f"Nombre médian de déplacement : {np.median(tries)}")
     print(f"Écart type : {tries.std()}")
