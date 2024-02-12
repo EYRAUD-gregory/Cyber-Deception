@@ -62,7 +62,7 @@ def print_stats(attacker, tries):
     if attacker.is_uniform:
         str += f"de {attacker.p} :"
     else:
-        str += "variable selon la taille du chemin parcouru (1 - e^(0.1*k))"
+        str += "variable selon la taille du chemin parcouru (1 - e^(-0.1*k))"
     print(str)
     print(f"Nombre moyen de déplacement : {tries.mean()}")
     print(f"Nombre médian de déplacement : {np.median(tries)}")
