@@ -9,18 +9,18 @@ if __name__ == '__main__':
     M = 4
     K = 3
 
-    attacker = Attacker(M=M, K=K, know_M=False, is_uniform=True)
+    attacker = Attacker(M=M, K=K, know_M=False, is_uniform=False)
 
-    attacker.model.plot_graph()
+    #attacker.model.plot_graph()
 
-    calculate_stats(attacker)
+    #calculate_stats(attacker)
 
     #all_p = [0.2, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.3]
     #all_K = [i for i in range(K, M * 5, K)] # On rajoute un honeypot par service à chaque itération
     #all_K = [3]
 
     # Pour voir l'animation d'une attaque
-    #attacker.animate_attack(interval=100)
+    attacker.animate_attack(interval=100)
 
     """
     means, stds = calculate_stats(attacker)

@@ -63,14 +63,21 @@ class Attacker:
                 self.ani.event_source.stop()  # On arrête l'animation
                 return
 
-        # Faire avancer l'attaquant
-        return_to_start = self.go_back()
-        if return_to_start:
-            self.position = '1'
-        else:
-            if self.G.nodes[self.position]['type'] != 'Goal':
-                self.position = self.move()
+                # Faire avancer l'attaquant
+        if self.position != '1':
+            return_to_start = self.go_back()  # Est-ce qu'on retourne en arrière?
+            if return_to_start:  # Si oui
+                self.position = '1'  # Retour au point de départ
                 self.nb_movement += 1
+                self.nb_movement_try = 0
+            else:
+                    self.position = self.move()  # On avance
+                    self.nb_movement += 1  # Incrément
+                    self.nb_movement_try += 1  # Incrément
+        else:
+            self.position = self.move()  # On avance
+            self.nb_movement += 1  # Incrément
+            self.nb_movement_try += 1  # Incrément
 
         plt.tight_layout()  # Pour s'assurer que tout rentre dans l'affichage
 
@@ -79,9 +86,13 @@ class Attacker:
         self.ani = FuncAnimation(self.fig, self.update_animation, frames=frames, interval=interval)
 
         plt.show()  # Nettoyer la figure
+        #plt.close()
 
         # Afficher l'animation dans le notebook
-        return HTML(self.ani.to_jshtml())
+        #return HTML(self.ani.to_jshtml())
+
+        # Afficher l'animation sous forme de vidéo HTML
+        return HTML(self.ani.to_html5_video())
 
     def attack(self, with_graph=False):
         self.position = '1'  # Postion de départ
