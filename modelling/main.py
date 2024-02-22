@@ -2,7 +2,7 @@ from attacker import Attacker
 import matplotlib.pyplot as plt
 from scipy import stats
 import numpy as np
-from statistics import calculate_stats, calculate_confidence_interval
+from stats import calculate_stats, calculate_confidence_interval
 
 if __name__ == '__main__':
 
