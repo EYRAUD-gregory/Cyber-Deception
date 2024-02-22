@@ -18,11 +18,11 @@ def simulate(attacker):
     return tries
 
 
-def calculate_stats(attacker, all_p=None, all_K=None):
-    if all_p is None and all_K is None :
+def calculate_stats(attacker, all_p=None, all_K=None, all_alpha=None):
+    if all_p is None and all_K is None and all_alpha is None:
         tries = simulate(attacker)
         print_stats(attacker, tries)
-    elif all_K is None:
+    elif all_K is None and all_alpha is None:
         means = np.zeros(len(all_p))
         stds = np.zeros(len(all_p))
         for i, p in enumerate(all_p):
@@ -32,12 +32,22 @@ def calculate_stats(attacker, all_p=None, all_K=None):
             means[i] = tries.mean()
             stds[i] = tries.std()
         return means, stds
-    else:
+    elif all_alpha is None:
         means = np.zeros(len(all_K))
         stds = np.zeros(len(all_K))
         for i, k in enumerate(all_K):
             attacker = Attacker(M=attacker.model.M, K=k, know_M=False, is_uniform=True)
             print(f"Attaques en cours pour K = {k}")
+            tries = simulate(attacker)
+            means[i] = tries.mean()
+            stds[i] = tries.std()
+        return means, stds
+    else:
+        means = np.zeros(len(all_alpha))
+        stds = np.zeros(len(all_alpha))
+        for i, a in enumerate(all_alpha):
+            attacker.alpha = a
+            print(f"Attaques en cours pour alpha = {a}")
             tries = simulate(attacker)
             means[i] = tries.mean()
             stds[i] = tries.std()
@@ -62,7 +72,7 @@ def print_stats(attacker, tries):
     if attacker.is_uniform:
         str += f"de {attacker.p} :"
     else:
-        str += "variable selon la taille du chemin parcouru (1 - e^(-0.1*k))"
+        str += "variable selon la taille du chemin parcouru (1 - e^(0.1*k))"
     print(str)
     print(f"Nombre moyen de déplacement : {tries.mean()}")
     print(f"Nombre médian de déplacement : {np.median(tries)}")
