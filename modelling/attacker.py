@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import random
 from modelling import Modelling
-from math import exp
+from math import exp, sqrt
 
 from IPython.display import HTML
 
 
 class Attacker:
-    def __init__(self, M, K, know_M=False, is_uniform=False):
+    def __init__(self, M, K, know_M=False, is_uniform=False, is_animated=False):
         self.model = Modelling(M, K)
         self.G = self.model.create_graph()  # Le graphe
         if know_M: # Si l'attaquant connaît M
@@ -20,18 +20,21 @@ class Attacker:
         self.position = '1'  # Position de l'attaquant
         self.nb_movement = 0  # Nombre de déplacement de l'attaquant
         self.nb_movement_try = 0  # Nombre de mouvement pour une tentative
-        self.fig, self.ax = plt.subplots()  # Utilisé pour afficher l'animation
+        if is_animated:
+            self.fig, self.ax = plt.subplots()  # Utilisé pour afficher l'animation
         self.ani = None  # L'animation
         self.p = 1/(M-1)  # probabilité de retour fixe
+        self.alpha = 0.1
 
     def proba_return(self):
         if self.M is None:
             if self.is_uniform:
                 return self.p  # probabilité uniforme de retour au point de départ
             #X = -self.nb_movement_try
-            X = -0.1 * self.nb_movement_try
+            X = -self.alpha * self.nb_movement_try
             return 1 - exp(X)
             #return exp(X)
+            #return 1 / (sqrt(self.nb_movement_try) +1)
         #print("Length = ", self.nb_movement%self.M)
         #return (self.nb_movement % self.M) == 0
 
@@ -92,7 +95,8 @@ class Attacker:
         #return HTML(self.ani.to_jshtml())
 
         # Afficher l'animation sous forme de vidéo HTML
-        return HTML(self.ani.to_html5_video())
+        #return HTML(self.ani.to_html5_video())
+        return HTML(self.ani.to_jshtml())
 
     def attack(self, with_graph=False):
         self.position = '1'  # Postion de départ
