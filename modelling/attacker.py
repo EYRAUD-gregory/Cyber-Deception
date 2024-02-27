@@ -89,13 +89,7 @@ class Attacker:
         self.ani = FuncAnimation(self.fig, self.update_animation, frames=frames, interval=interval)
 
         plt.show()  # Nettoyer la figure
-        #plt.close()
 
-        # Afficher l'animation dans le notebook
-        #return HTML(self.ani.to_jshtml())
-
-        # Afficher l'animation sous forme de vidéo HTML
-        #return HTML(self.ani.to_html5_video())
         return HTML(self.ani.to_jshtml())
 
     def attack(self, with_graph=False):
@@ -107,7 +101,6 @@ class Attacker:
         # Tant qu'on est pas arrivé à la destination
         while ((self.M is not None and self.position != str(self.M)) or (
                 self.M is None and self.G.nodes[self.position]['type'] != 'Goal')):
-            #self.nb_movement += 1  # On le compte comme un mouvement
 
             if self.position != '1':
                 return_to_start = self.go_back()  # Est-ce qu'on retourne en arrière?
