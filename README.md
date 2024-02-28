@@ -8,6 +8,6 @@ Cette partie permet de modéliser le graphe ainsi que le comportement de l'attaq
 
 Le fichier modelling.py permet de générer le graphe et les leurres:
 
-![uniform defense](images\plot_M5_K12.png)
+![uniform defense](images/plot_M5_K12.png)
 
 Un notebook est également mis à disposition sur [Google Colab](https://colab.research.google.com/drive/1-yEJ9yJk8F60MYMPic5rrAisjuEh0sWT?usp=sharing)
