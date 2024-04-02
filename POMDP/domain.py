@@ -1,7 +1,5 @@
 import pomdp_py
 
-L = 4
-
 
 class State(pomdp_py.State):
     def __init__(self, k, chi, T):
