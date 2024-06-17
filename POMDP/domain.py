@@ -19,10 +19,13 @@ class State(pomdp_py.State):
             return False
         return self.k == state.k and self.chi == state.chi and self.T == state.T
 
+    def __str__(self):
+        return f"({self.k}, {self.chi}, {self.T})"
+
 
 class Action(pomdp_py.Action):
     def __init__(self, name):
-        if name != "go_back" or name != "go_forward":
+        if name != "go_back" and name != "go_forward":
             raise ValueError(f"Invalid action: ({name})")
         self.name = name
 
@@ -33,6 +36,9 @@ class Action(pomdp_py.Action):
         if not isinstance(action, Action):
             return False
         return self.name == action.name
+
+    def __str__(self):
+        return self.name
 
 
 class Observation(pomdp_py.Observation):
@@ -49,3 +55,6 @@ class Observation(pomdp_py.Observation):
         if not isinstance(observation, Observation):
             return False
         return self.Y == observation.Y and self.T == observation.T
+
+    def __str__(self):
+        return f"({self.Y}, {self.T})"
