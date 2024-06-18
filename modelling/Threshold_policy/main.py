@@ -2,7 +2,14 @@ from attacker import Attacker
 import matplotlib.pyplot as plt
 from scipy import stats
 import numpy as np
-from stats import calculate_stats, calculate_confidence_interval
+# from stats import calculate_stats, calculate_confidence_interval
+
+gamma = 0.995
+W = 1e5
+
+
+def mean_reward():
+    return
 
 if __name__ == '__main__':
 
@@ -11,12 +18,14 @@ if __name__ == '__main__':
 
     attacker = Attacker(M=M, K=K, know_M=False, is_uniform=False, is_animated=False)
 
-    #attacker.model.plot_graph()
+    attacker.attack()
+
+    attacker.model.plot_graph()
 
     #calculate_stats(attacker)
 
     #all_p = [0.2, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.3]
-    all_K = [i for i in range(K, M * 5, K)] # On rajoute un honeypot par service à chaque itération
+    #all_K = [i for i in range(K, M * 5, K)] # On rajoute un honeypot par service à chaque itération
 
     """
     all_alpha = [i/100 for i in range(1, 31)]
@@ -35,7 +44,7 @@ if __name__ == '__main__':
     #attacker.animate_attack(interval=100)
 
 
-    means, stds = calculate_stats(attacker, all_K=all_K)
+    #means, stds = calculate_stats(attacker, all_K=all_K)
     """
     #means, stds = calculate_stats(attacker, all_p=all_p)
     all_confidence_intervals = calculate_confidence_interval(means, stds)
@@ -54,7 +63,7 @@ if __name__ == '__main__':
         lower_bound, upper_bound = all_confidence_intervals[i]
         plt.plot([all_K[i], all_K[i]], [lower_bound, upper_bound], color='blue', linewidth=2)
         plt.scatter(all_K[i], mean, color='red')  # Marquer la moyenne
-    """
+    
     # Création du graphique
     plt.plot(all_K, means, label='Moyenne')  # Courbe de la moyenne
     plt.title(f'Moyenne des déplacements d\'un attaquant en fonction de K (M = {M}, p = {attacker.p})')
@@ -62,4 +71,4 @@ if __name__ == '__main__':
     plt.ylabel('Moyenne')
     plt.legend()
     plt.show()
-
+"""
