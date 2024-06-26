@@ -25,7 +25,7 @@ def go_forward(s, M):
         is_going_in_honeypot = random.choices([True, False], weights=[(1 - 1/L), 1/L])[0]
         if is_going_in_honeypot:
             return State(s.Y +1, 1, 0)
-        if s.Y == M-1:
+        if s.Y == M-2:
             return State(s.Y +1, 0,1)
         return State(s.Y +1, 0, 0)
     return State(s.Y +1, 1, 0)
@@ -112,18 +112,6 @@ def poisson_truncated_cdf(k, lamb):
         cdf += poisson_truncated_pmf(x, lamb)
     return cdf
 
-
-def get_M_From_Poisson(lambda_):
-    # Générer une seule valeur suivant la loi de Poisson
-    M = np.random.poisson(lambda_)
-    #print('M =', M)
-    # Calculer la probabilité P(X>=valeur)
-    #probabilite = 1 - poisson_survie(lambda_, M)
-    #print(probabilite)
-
-    return M
-
-
 def a(sigma):
     return -gamma * (1 - gamma ** (sigma + 1)) / (1 - gamma)
 
@@ -169,7 +157,106 @@ def plot_sub_graphics(all_evolution_reward):
     plt.show()
 
 
+def sample_truncated_poisson(lam):
+    sample = poisson.rvs(mu=lam)
+    while sample < 2:
+        sample = poisson.rvs(mu=lam)
+    return sample
+
+
+def simu_for_threshold(episodes, sigmas, lambda_, W):
+    all_rewards = np.zeros(len(sigmas))
+    for sigma in sigmas:
+        print("Simulation : sigma = ", sigma)
+        rewards = np.zeros(episodes)
+        for i in range(0, episodes):
+            reward = 0
+            nb_step = 0
+            nb_step_total = 0
+            #M = np.random.poisson(lam=lambda_)
+            #while M < 2:
+                #M = np.random.poisson(lam=lambda_)
+            #M = sample_truncated_poisson(lambda_)
+            M = random.choices([2, 3, 4, 5, 6, 7, 8, 9, 10, 11], weights=[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1])[0]
+            if M > sigma:
+                rewards[i] = -1 / (1 - gamma)
+                continue
+            #print("M = ", M)
+            state = State(0, 0, 0)
+            while state.T != 1:
+                if nb_step < sigma:
+                    state = go_forward(state, M)
+                    nb_step += 1
+                    nb_step_total += 1
+                else:
+                    state = go_back()
+                    nb_step = 0
+                    nb_step_total += 1
+                #if(M == 2):
+                    #print("Y: ", state.Y, "chi: ", state.chi, "T: ", state.T)
+            # print("yes it works : nb_step_total = ", nb_step_total, ", M = ", M)
+            #print("nb_step_total = ", nb_step_total)
+            for j in range(0, nb_step_total):
+                reward += -gamma ** j
+            if state.T == 1:
+                reward += W * gamma ** (nb_step_total-1)
+            else:
+                reward += -gamma ** (nb_step_total-1)
+
+            rewards[i] = reward
+        all_rewards[sigma - 1] = np.mean(rewards)
+    return all_rewards
+
+
+def plot_rewards(all_rewards, lambda_):
+    id = 0
+    for reward in all_rewards:
+        if id == 0:
+            label = "Simulation"
+        else:
+            label = "Formule"
+        plt.plot(sigmas, reward, marker='o', label=label)
+        id +=1
+    plt.title(f"Evolution des rewards selon sigma (lambda = {lambda_})")
+    plt.xlabel("Sigma")
+    plt.ylabel("Reward")
+    plt.grid()
+    plt.legend()
+    plt.show()
+
+
+def mean_reward(sigma, lambda_, W):
+    somme = 0
+    for m in range(2, sigma):
+        #somme += ((L**(1-m) * gamma**m) / (1 - (1 - L**(1-m))* gamma**(sigma+1))) *(np.exp(-lambda_) * (lambda_ ** m) / math.factorial(m))
+        somme += ((L ** (1 - m) * gamma ** m) / (1 - (1 - L ** (1 - m)) * gamma ** (sigma + 1))) * 1/10
+    #reward = -(1 / (1 - gamma)) * (1 - poisson_truncated_cdf(sigma, lambda_)) + (W + (1 / (1 - gamma))) * somme
+    reward = -(1 / (1 - gamma)) * (1 - sigma/10) + (W + (1 / (1 - gamma))) * somme
+
+    return reward
+
+
 if __name__ == '__main__':
+
+    # M = 4
+    # p_success = 1 / L ** (M - 1)
+
+    episodes = 10000
+    sigmas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    lambda_ = 3
+    W = 1e4
+
+    all_rewards_simu = simu_for_threshold(episodes, sigmas, lambda_, W)
+    #all_rewards = [all_rewards_simu]
+    #plot_rewards(all_rewards, lambda_)
+
+    all_rewards_formula = np.zeros(len(sigmas))
+    for sigma in sigmas:
+        all_rewards_formula[sigma-1] = mean_reward(sigma, lambda_, W)
+
+    all_rewards = [all_rewards_simu, all_rewards_formula]
+
+    plot_rewards(all_rewards, lambda_)
 
     """
     rewards_total = np.zeros(10 - k_max)
@@ -366,7 +453,7 @@ if __name__ == '__main__':
     plot_graph(all_evolution_reward, 'Poisson')
     """
 
-
+    """
     # ----------Pour loi de Poisson v2--------------------
     #M = 4
     #p_success = 1 / L ** (M - 1)
@@ -426,7 +513,7 @@ if __name__ == '__main__':
     for i in range(len(all_evolution_reward)):
         print('i = ', i)
         print(max(all_evolution_reward[i]))
-
+    """
 
     """
     # ----------Pour loi de Poisson Positive--------------------
