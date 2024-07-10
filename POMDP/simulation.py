@@ -88,77 +88,55 @@ def sample_truncated_poisson(lam):
     return sample
 
 
-def simu_for_threshold(episodes, sigmas, lambda_, W):
+def simulate(episodes, sigma, lambda_, W, distrib="Poisson"):
+    print("Simulation : sigma = ", sigma)
+    rewards = np.zeros(episodes)
+    for i in range(0, episodes):
+        reward = 0
+        nb_step = 0
+        nb_step_total = 0
+        if distrib == "Poisson":
+            M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
+        else:
+            M = random.choices([1, 2, 3], weights=[1 / 3, 1 / 3, 1 / 3])[0]  # Pour distribution, uniforme
+        if M > sigma:
+            rewards[i] = -1 / (1 - gamma)
+            # print("Reward = ", rewards[i])
+            continue
+        # print("M = ", M)
+        state = State(0, 0, 0)
+        while state.T != 1:
+            if nb_step < sigma:
+                state = go_forward(state, M)
+                nb_step += 1
+                nb_step_total += 1
+            else:
+                state = go_back()
+                nb_step = 0
+                nb_step_total += 1
+
+        # print("nb_step_total = ", nb_step_total)
+        for j in range(0, nb_step_total - 1):
+            reward += -gamma ** j
+        reward += W * gamma ** (nb_step_total - 1)
+
+        rewards[i] = reward
+        # print("Reward = ", rewards[i])
+    return rewards
+
+
+def simu_for_threshold(episodes, sigmas, lambda_, W, distrib="Poisson"):
     all_rewards = np.zeros(len(sigmas))
     for sigma in sigmas:
-        print("Simulation : sigma = ", sigma)
-        rewards = np.zeros(episodes)
-        for i in range(0, episodes):
-            reward = 0
-            nb_step = 0
-            nb_step_total = 0
-            M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
-            #M = random.choices([1, 2, 3], weights=[1/3, 1/3, 1/3])[0]  # Pour distribution, uniforme
-            if M > sigma:
-                rewards[i] = -1 / (1 - gamma)
-                #print("Reward = ", rewards[i])
-                continue
-            #print("M = ", M)
-            state = State(0, 0, 0)
-            while state.T != 1:
-                if nb_step < sigma:
-                    state = go_forward(state, M)
-                    nb_step += 1
-                    nb_step_total += 1
-                else:
-                    state = go_back()
-                    nb_step = 0
-                    nb_step_total += 1
-
-            #print("nb_step_total = ", nb_step_total)
-            for j in range(0, nb_step_total-1):
-                reward += -gamma ** j
-            reward += W * gamma ** (nb_step_total-1)
-
-            rewards[i] = reward
-            #print("Reward = ", rewards[i])
+        rewards = simulate(episodes, sigma, lambda_, W, distrib)
         all_rewards[sigma - 1] = np.mean(rewards)
     return all_rewards
 
 
-def optimal_sigma_for_threshold(episodes, sigmas, lambda_, W):
+def optimal_sigma_for_threshold(episodes, sigmas, lambda_, W, distrib="Poisson"):
     all_rewards = {}
     for sigma in sigmas:
-        print("Simulation : sigma = ", sigma)
-        rewards = np.zeros(episodes)
-        for i in range(0, episodes):
-            reward = 0
-            nb_step = 0
-            nb_step_total = 0
-            M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
-            #M = random.choices([1, 2, 3], weights=[1/3, 1/3, 1/3])[0]  # Pour distribution uniforme
-            if M > sigma:
-                rewards[i] = -1 / (1 - gamma)
-                #print("Reward = ", rewards[i])
-                continue
-            #print("M = ", M)
-            state = State(0, 0, 0)
-            while state.T != 1:
-                if nb_step < sigma:
-                    state = go_forward(state, M)
-                    nb_step += 1
-                    nb_step_total += 1
-                else:
-                    state = go_back()
-                    nb_step = 0
-                    nb_step_total += 1
-            #print("nb_step_total = ", nb_step_total)
-            for j in range(0, nb_step_total-1):
-                reward += -gamma ** j
-            reward += W * gamma ** (nb_step_total-1)
-
-            rewards[i] = reward
-            #print("Reward = ", rewards[i])
+        rewards = simulate(episodes, sigma, lambda_, W, distrib)
         all_rewards[sigma] = np.mean(rewards)
     print(all_rewards)
     return max(all_rewards, key=all_rewards.get)
