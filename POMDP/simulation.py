@@ -36,92 +36,14 @@ def go_back():
     return State(0,0,0)
 
 
-def belief(s):
-
-    if s.chi == 0 and s.T == 0:
-        return N1(s.Y) / (N1(s.Y) + N2(s.Y))
-    elif s.chi == 1 and s.T == 0:
-        return N2(s.Y) / (N1(s.Y) + N2(s.Y))
-
-    #return [(N1(s.Y) / (N1(s.Y) + N2(s.Y))), (N2(s.Y) / (N1(s.Y) + N2(s.Y)))]
-
-
-def N1(k):
-    result = a_priori_distribution(0)
-    for i in range(0, k+1):
-        result *= a_priori_distribution(i)
-    return result
-
-
-def N2(k):
-    result = 0
-    result2 = 1
-    for i in range(0, k):
-        result1 = (L-1)*L**i
-        for j in range(0, k-i):
-            result2 *= a_priori_distribution(j)
-        result += result1*result2
-    return result
-
-
-def value_function(s):
-    gamma = 0.9995
-    if s.chi == 0:
-        s2 = State(s.Y, 1, 0)
-    else:
-        s2 = State(s.Y, 0, 0)
-
-    #value = (belief(s)*-1 + belief(s2)*-1) + gamma*(a_priori_distribution(s.Y)*111+1256)
-
-
-def a_priori_distribution(M_conject, mean, std, k):
-    #M_conject = 10
-    #mean = M_conject/2
-    #std = 1
-
-    # Définir les paramètres de la distribution tronquée
-    a = (0 - mean) / std  # limite inférieure standardisée
-    b = (M_conject - mean) / std  # limite supérieure standardisée
-
-    # Calcul de la probabilité que M dépasse k
-    probability_M_gt_k = 1 - truncnorm.cdf(k, a, b, loc=mean, scale=std)
-
-
-    #print(f"For k : {k}, Pr = {probability_M_gt_k}")
-
-    return probability_M_gt_k
-
-
-def poisson_survie(lambda_, valeur):
-    return np.exp(-lambda_) * sum((lambda_ ** k) / math.factorial(k) for k in range(valeur + 1))
-
-
-def poisson_positive_survie(lambda_, valeur):
-    #return sum((lambda_**k) / ((math.exp(lambda_) -1) * math.factorial(k)) for k in range(valeur + 1) )
-    proba_zero = poisson.pmf(0, lambda_)
-    return (poisson.cdf(valeur, lambda_)) / (1 - proba_zero)
-
-
 def poisson_truncated_pmf(x, lamb):
     if x == 0:
         return 0
     return (lamb ** x) / ((math.exp(lamb) - 1) * math.factorial(x))
 
-def poisson_truncated_cdf(k, lamb):
-    cdf = 0
-    for x in range(1, k + 1):
-        cdf += poisson_truncated_pmf(x, lamb)
-    return cdf
 
-def a(sigma):
-    return -gamma * (1 - gamma ** (sigma + 1)) / (1 - gamma)
-
-
-def plot_graph(all_evolution_reward, type_distrib):
-    # Affichage du graphique avec des améliorations
+def plot_graph(all_evolution_reward, type_distrib='Poisson'):
     plt.figure(figsize=(12, 6))
-    #markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p']
-    #colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'orange']
     markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h', 'H', '+', 'x', '|', '_']
     colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'orange', 'purple', 'pink', 'brown', 'olive', 'cyan', 'gray', 'lime']
 
@@ -138,6 +60,7 @@ def plot_graph(all_evolution_reward, type_distrib):
     plt.legend()
     plt.grid(True)
     plt.show()
+
 
 def plot_sub_graphics(all_evolution_reward):
     global evolution_reward
@@ -159,9 +82,9 @@ def plot_sub_graphics(all_evolution_reward):
 
 
 def sample_truncated_poisson(lam):
-    sample = poisson.rvs(mu=lam)
-    while sample < 2:
-        sample = poisson.rvs(mu=lam)
+    sample = np.random.poisson(lam=lam)
+    while sample < 1:
+        sample = np.random.poisson(lam=lam)
     return sample
 
 
@@ -174,12 +97,8 @@ def simu_for_threshold(episodes, sigmas, lambda_, W):
             reward = 0
             nb_step = 0
             nb_step_total = 0
-            M = np.random.poisson(lam=lambda_)
-            while M < 1:
-                M = np.random.poisson(lam=lambda_)
-            #M = sample_truncated_poisson(lambda_)
-            #M = random.choices([1, 2, 3], weights=[1/3, 1/3, 1/3])[0]
-            #M = 4
+            M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
+            #M = random.choices([1, 2, 3], weights=[1/3, 1/3, 1/3])[0]  # Pour distribution, uniforme
             if M > sigma:
                 rewards[i] = -1 / (1 - gamma)
                 #print("Reward = ", rewards[i])
@@ -195,20 +114,54 @@ def simu_for_threshold(episodes, sigmas, lambda_, W):
                     state = go_back()
                     nb_step = 0
                     nb_step_total += 1
-                #if(M == 2):
-                    #print("Y: ", state.Y, "chi: ", state.chi, "T: ", state.T)
-            # print("yes it works : nb_step_total = ", nb_step_total, ", M = ", M)
-            #print("nb_step_total = ", nb_step_total)
+
             #print("nb_step_total = ", nb_step_total)
             for j in range(0, nb_step_total-1):
                 reward += -gamma ** j
             reward += W * gamma ** (nb_step_total-1)
 
-
             rewards[i] = reward
             #print("Reward = ", rewards[i])
         all_rewards[sigma - 1] = np.mean(rewards)
     return all_rewards
+
+
+def optimal_sigma_for_threshold(episodes, sigmas, lambda_, W):
+    all_rewards = {}
+    for sigma in sigmas:
+        print("Simulation : sigma = ", sigma)
+        rewards = np.zeros(episodes)
+        for i in range(0, episodes):
+            reward = 0
+            nb_step = 0
+            nb_step_total = 0
+            M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
+            #M = random.choices([1, 2, 3], weights=[1/3, 1/3, 1/3])[0]  # Pour distribution uniforme
+            if M > sigma:
+                rewards[i] = -1 / (1 - gamma)
+                #print("Reward = ", rewards[i])
+                continue
+            #print("M = ", M)
+            state = State(0, 0, 0)
+            while state.T != 1:
+                if nb_step < sigma:
+                    state = go_forward(state, M)
+                    nb_step += 1
+                    nb_step_total += 1
+                else:
+                    state = go_back()
+                    nb_step = 0
+                    nb_step_total += 1
+            #print("nb_step_total = ", nb_step_total)
+            for j in range(0, nb_step_total-1):
+                reward += -gamma ** j
+            reward += W * gamma ** (nb_step_total-1)
+
+            rewards[i] = reward
+            #print("Reward = ", rewards[i])
+        all_rewards[sigma] = np.mean(rewards)
+    print(all_rewards)
+    return max(all_rewards, key=all_rewards.get)
 
 
 def plot_rewards(all_rewards, lambda_):
@@ -229,18 +182,19 @@ def plot_rewards(all_rewards, lambda_):
     plt.show()
 
 
-def mean_reward(sigma, lambda_, W):
+def mean_reward(sigma, lambda_, W, distrib='Poisson'):
     somme = 0
-    #proba = [0, 1/3, 1/3, 1/3, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    proba = [0, 1/3, 1/3, 1/3, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Distribution uniforme de support 3
     m = 1
 
-    #for m in range(0, sigma):
     while m <= sigma:
-        somme += ((L**(-m) * gamma**m) / (1 - (1 - L**(-m))* gamma**(sigma+1))) *(np.exp(-lambda_) * (lambda_ ** m) / math.factorial(m))
-        #somme += ((L ** (-m) * gamma ** m) / (1 - (1 - L ** (-m)) * gamma ** (sigma+1))) * proba[m]
-        #print("rho = ", L**(-m))
+        if distrib == 'Poisson':
+            beta_m = (np.exp(-lambda_) * (lambda_ ** m) / math.factorial(m))
+        else:
+            beta_m = proba[m]
+        somme += ((L**(-m) * gamma**m) / (1 - (1 - L**(-m))* gamma**(sigma+1))) * beta_m
         m += 1
-    #reward = -(1 / (1 - gamma)) * (1 - poisson_truncated_cdf(sigma, lambda_)) + (W + (1 / (1 - gamma))) * somme
+
     print("sigma = ", sigma, "somme = ", somme)
     reward = -(1 / (1 - gamma)) + (W + (1 / (1 - gamma))) * somme
 
@@ -249,32 +203,46 @@ def mean_reward(sigma, lambda_, W):
     return reward
 
 
-if __name__ == '__main__':
+def compare_simulation_formula(episodes, sigmas, lambda_, W):
+    all_rewards_simu = simu_for_threshold(episodes, sigmas, lambda_, W)
+    all_rewards_formula = np.zeros(len(sigmas))
+    for sigma in sigmas:
+        all_rewards_formula[sigma - 1] = mean_reward(sigma, lambda_, W)
+    all_rewards = [all_rewards_simu, all_rewards_formula]
+    # for i in range(0, len(all_rewards_simu)):
+    #   print("ratio = ", all_rewards_simu[i]/all_rewards_formula[i])
+    plot_rewards(all_rewards, lambda_)
 
-    # M = 4
-    # p_success = 1 / L ** (M - 1)
+
+def find_optimal_sigmas(episodes, sigmas, all_lambdas, W):
+    all_optimal_sigma = []
+    for lambda_ in all_lambdas:
+        print('lambda = ', lambda_)
+        all_optimal_sigma.append(optimal_sigma_for_threshold(episodes, sigmas, lambda_, W))
+
+    print(all_optimal_sigma)
+
+    plt.plot(all_lambdas, all_optimal_sigma, marker='o')
+    plt.title(f"Evolution du sigma optimal selon lambda")
+    plt.xlabel("Lambda")
+    plt.ylabel("Sigma")
+    plt.grid()
+    plt.show()
+
+
+if __name__ == '__main__':
 
     episodes = 10000
     sigmas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     lambda_ = 8
-    #all_lambdas = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-    W = 1e2
+    all_lambdas = [1, 2, 3, 4, 5, 6]
+    W = 1e3
+
+    compare_simulation_formula(episodes, sigmas, lambda_, W)
+
+    find_optimal_sigmas(episodes, sigmas, all_lambdas, W)
 
 
-    all_rewards_simu = simu_for_threshold(episodes, sigmas, lambda_, W)
-    #all_rewards = [all_rewards_simu]
-    #plot_rewards(all_rewards, lambda_)
-
-    all_rewards_formula = np.zeros(len(sigmas))
-    for sigma in sigmas:
-        all_rewards_formula[sigma-1] = mean_reward(sigma, lambda_, W)
-
-    all_rewards = [all_rewards_simu, all_rewards_formula]
-
-    for i in range(0, len(all_rewards_simu)):
-        print("ratio = ", all_rewards_simu[i]/all_rewards_formula[i])
-
-    plot_rewards(all_rewards, lambda_)
 
 
 
