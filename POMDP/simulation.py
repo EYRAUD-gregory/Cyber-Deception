@@ -103,7 +103,7 @@ def simulate(episodes, sigma, lambda_, W, distrib="Poisson"):
             rewards[i] = -1 / (1 - gamma)
             # print("Reward = ", rewards[i])
             continue
-        # print("M = ", M)
+        print("M = ", M)
         state = State(0, 0, 0)
         while state.T != 1:
             if nb_step < sigma:
@@ -208,28 +208,77 @@ def find_optimal_sigmas(episodes, sigmas, all_lambdas, W):
     plt.show()
 
 
+def probability_M_greater_k(M, k, lambda_, distrib="Poisson"):
+    proba = 0
+    if distrib == "Poisson":
+        for i in range(0, k):
+            proba += (np.exp(-lambda_) * (lambda_ ** i) / math.factorial(i))
+
+    return 1 - proba
+
+
 if __name__ == '__main__':
 
     episodes = 10000
-    sigmas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    lambda_ = 8
+    sigmas = [1, 2, 3, 4, 5, 6, 7]
+    #lambda_ = 8
     all_lambdas = [1, 2, 3, 4, 5, 6]
     W = 1e3
 
-    compare_simulation_formula(episodes, sigmas, lambda_, W)
+    #compare_simulation_formula(episodes, sigmas, lambda_, W)
 
-    find_optimal_sigmas(episodes, sigmas, all_lambdas, W)
+    #find_optimal_sigmas(episodes, sigmas, all_lambdas, W)
 
+    distrib = "Poisson"
+    all_rewards = np.zeros(len(all_lambdas))
 
+    for lambda_ in all_lambdas:
+        print("Simulation : lambda = ", lambda_)
+        rewards = np.zeros(episodes)
+        for i in range(0, episodes):
+            #print("episode : ", i)
+            reward = 0
+            nb_step = 0
+            nb_step_total = 0
+            if distrib == "Poisson":
+                M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
+            else:
+                M = random.choices([1, 2, 3], weights=[1 / 3, 1 / 3, 1 / 3])[0]  # Pour distribution, uniforme
+            #print("M = ", M)
+            state = State(0, 0, 0)
+            is_going_back = False
+            while state.T != 1 and nb_step_total < 1e5:
+                if state.Y > 0:
+                    if distrib == "Poisson":
+                        #print("proba de retour = ", 1 - probability_M_greater_k(M, nb_step, lambda_))
+                        is_going_back = random.choices([True, False],
+                                                       weights=[1 - probability_M_greater_k(M, nb_step, lambda_),
+                                                                probability_M_greater_k(M, nb_step, lambda_)])[0]
+                if not is_going_back:
+                    state = go_forward(state, M)
+                    nb_step += 1
+                    nb_step_total += 1
+                else:
+                    state = go_back()
+                    nb_step = 0
+                    nb_step_total += 1
+                    is_going_back = False
 
+            # print("nb_step_total = ", nb_step_total)
+            for j in range(0, nb_step_total - 1):
+                reward += -gamma ** j
+            if state.T == 1:
+                reward += W * gamma ** (nb_step_total - 1)
+            else:
+                reward += -gamma ** (nb_step_total - 1)
 
+            rewards[i] = reward
+            # print("Reward = ", rewards[i])
+        all_rewards[lambda_ - 1] = np.mean(rewards)
 
-
-
-
-
-
-
-
-
-
+    plt.plot(all_lambdas, all_rewards, marker='o')
+    plt.title(f"Evolution de la reward optimal selon lambda")
+    plt.xlabel("Lambda")
+    plt.ylabel("Reward")
+    plt.grid()
+    plt.show()
