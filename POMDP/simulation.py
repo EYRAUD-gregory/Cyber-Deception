@@ -184,6 +184,7 @@ def probability_M_greater_k(M, k, lambda_, distrib="Poisson"):
 # Fonction pour simuler une politique donnée se servant d'une distribution a priori donné
 def simulate_policy(episodes, all_lambdas, W, distrib, policy):
     all_rewards = np.zeros(len(all_lambdas))
+    probabilities_to_return = [0.38, 0.3, 0.2, 0.2, 0.17, 0.17, 0.15, 0.13, 0.12, 0.1]  # Calculer avec les fonctions calculate_optimal_p et find_optimal_p (10 000 episodes)
     for lambda_ in all_lambdas:
         print("Simulation : lambda = ", lambda_)
         rewards = np.zeros(episodes)
@@ -205,10 +206,10 @@ def simulate_policy(episodes, all_lambdas, W, distrib, policy):
                                                        weights=[1 - probability_M_greater_k(M, nb_step, lambda_),
                                                                 probability_M_greater_k(M, nb_step, lambda_)])[0]
                     elif policy == "uniforme":
-                        probability_to_return = 1 / lambda_
+                        p= probabilities_to_return[lambda_]
                         is_going_back = random.choices([True, False],
-                                                       weights=[probability_to_return,
-                                                               1 - probability_to_return])[0]
+                                                       weights=[p,
+                                                               1 - p])[0]
                 if is_going_back and nb_step > 0:
                     state = go_back()
                     nb_step = 0
@@ -332,7 +333,7 @@ if __name__ == '__main__':
     all_lambdas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     sigmas_optimal = [4, 5, 5, 6, 7, 7, 7, 7, 7, 8]
     W = 1e3
-    """
+
     i = 0
     rewards_threshold = np.zeros(len(all_lambdas))
     for lambda_ in all_lambdas:
@@ -354,24 +355,27 @@ if __name__ == '__main__':
     all_rewards.append(rewards_threshold)
 
     compare_policies(policies=policies, rewards=all_rewards)
-    """
 
+
+    """
+    
+    
     reward_for_p = calculate_optimal_p(episodes, all_lambdas, W,"Poisson", 'uniforme')
 
     print(reward_for_p)
 
     print(find_optimal_p(reward_for_p))
 
-    """
-    Pour lambda = 1, la valeur maximale de reward est 913.2413047301376 avec p = 0.32
-    Pour lambda = 2, la valeur maximale de reward est 791.6750927131478 avec p = 0.33
-    Pour lambda = 3, la valeur maximale de reward est 626.8583496759528 avec p = 0.26
-    Pour lambda = 4, la valeur maximale de reward est 459.49381600705584 avec p = 0.22
-    Pour lambda = 5, la valeur maximale de reward est 293.5266240673581 avec p = 0.19
-    Pour lambda = 6, la valeur maximale de reward est 145.13303508032638 avec p = 0.16
-    Pour lambda = 7, la valeur maximale de reward est 34.84460312109186 avec p = 0.11
-    Pour lambda = 8, la valeur maximale de reward est -42.04263384212284 avec p = 0.09999999999999999
-    Pour lambda = 9, la valeur maximale de reward est -88.81648921665611 avec p = 0.09
-    Pour lambda = 10, la valeur maximale de reward est -135.44567315520757 avec p = 0.08
+    
+    Pour lambda = 1, la valeur maximale de reward est 909.0988826002067 avec p = 0.38
+    Pour lambda = 2, la valeur maximale de reward est 778.9427510508276 avec p = 0.3
+    Pour lambda = 3, la valeur maximale de reward est 613.8007214506345 avec p = 0.2
+    Pour lambda = 4, la valeur maximale de reward est 434.1678062737107 avec p = 0.2
+    Pour lambda = 5, la valeur maximale de reward est 269.33658064395246 avec p = 0.17
+    Pour lambda = 6, la valeur maximale de reward est 139.2502551808424 avec p = 0.17
+    Pour lambda = 7, la valeur maximale de reward est 32.58830612730737 avec p = 0.15000000000000002
+    Pour lambda = 8, la valeur maximale de reward est -48.42620413972533 avec p = 0.13
+    Pour lambda = 9, la valeur maximale de reward est -104.43532486130091 avec p = 0.12
+    Pour lambda = 10, la valeur maximale de reward est -140.8995224765586 avec p = 0.09999999999999999
     """
 
