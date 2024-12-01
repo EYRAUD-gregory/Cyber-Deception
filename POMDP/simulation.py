@@ -184,7 +184,7 @@ def probability_M_greater_k(M, k, lambda_, distrib="Poisson"):
 # Fonction pour simuler une politique donnée se servant d'une distribution a priori donné
 def simulate_policy(episodes, all_lambdas, W, distrib, policy):
     all_rewards = np.zeros(len(all_lambdas))
-    probabilities_to_return = [0.38, 0.3, 0.2, 0.2, 0.17, 0.17, 0.15, 0.13, 0.12, 0.1]  # Calculer avec les fonctions calculate_optimal_p et find_optimal_p (10 000 episodes)
+    probabilities_to_return = [0.38, 0.3, 0.2, 0.2, 0.17, 0.17, 0.14, 0.13, 0.11, 0.1]  # Calculer avec les fonctions calculate_optimal_p et find_optimal_p (10 000 episodes)
     for lambda_ in all_lambdas:
         print("Simulation : lambda = ", lambda_)
         rewards = np.zeros(episodes)
@@ -206,7 +206,7 @@ def simulate_policy(episodes, all_lambdas, W, distrib, policy):
                                                        weights=[1 - probability_M_greater_k(M, nb_step, lambda_),
                                                                 probability_M_greater_k(M, nb_step, lambda_)])[0]
                     elif policy == "uniforme":
-                        p= probabilities_to_return[lambda_]
+                        p = probabilities_to_return[lambda_-1]
                         is_going_back = random.choices([True, False],
                                                        weights=[p,
                                                                1 - p])[0]
@@ -327,7 +327,7 @@ def compare_policies(policies, rewards):
 
 if __name__ == '__main__':
 
-    episodes = 10000
+    episodes = 1000
     sigmas = [1, 2, 3, 4, 5, 6, 7]
     #lambda_ = 8
     all_lambdas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -357,9 +357,9 @@ if __name__ == '__main__':
     compare_policies(policies=policies, rewards=all_rewards)
 
 
+    
+    
     """
-    
-    
     reward_for_p = calculate_optimal_p(episodes, all_lambdas, W,"Poisson", 'uniforme')
 
     print(reward_for_p)
@@ -373,9 +373,10 @@ if __name__ == '__main__':
     Pour lambda = 4, la valeur maximale de reward est 434.1678062737107 avec p = 0.2
     Pour lambda = 5, la valeur maximale de reward est 269.33658064395246 avec p = 0.17
     Pour lambda = 6, la valeur maximale de reward est 139.2502551808424 avec p = 0.17
-    Pour lambda = 7, la valeur maximale de reward est 32.58830612730737 avec p = 0.15000000000000002
-    Pour lambda = 8, la valeur maximale de reward est -48.42620413972533 avec p = 0.13
+    Pour lambda = 7, la valeur maximale de reward est 32.58830612730737 avec p = 0.14000000000000002
+    Pour lambda = 8, la valeur maximale de reward est -48.42620413972533 avec p = 0.12
     Pour lambda = 9, la valeur maximale de reward est -104.43532486130091 avec p = 0.12
     Pour lambda = 10, la valeur maximale de reward est -140.8995224765586 avec p = 0.09999999999999999
     """
+
 
