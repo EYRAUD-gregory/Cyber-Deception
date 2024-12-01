@@ -9,580 +9,374 @@ from scipy.stats import rv_discrete
 import matplotlib.pyplot as plt
 
 L = 2
-k_max = 3
 gamma = 0.995
 
-
+# Classe représentant un état (i.e un microservice)
 class State:
     def __init__(self, Y, chi, T):
-        self.Y = Y
-        self.chi = chi
-        self.T = T
+        self.Y = Y  # L'indice du microservice
+        self.chi = chi  # 1 si honeypot 0 sinon
+        self.T = T  # 1 si arrivé dans la cible 0 sinon
 
 
+# Fonction pour simuler le déplacement d'un attaquant
 def go_forward(s, M):
-    if s.chi == 0:
-        is_going_in_honeypot = random.choices([True, False], weights=[(1 - 1/L), 1/L])[0]
-        if is_going_in_honeypot:
-            return State(s.Y +1, 1, 0)
-        if s.Y == M-1:
-            return State(s.Y +1, 0,1)
-        return State(s.Y +1, 0, 0)
-    return State(s.Y +1, 1, 0)
+    if s.chi == 0:  # Si dans le bon chemin
+        is_going_in_honeypot = random.choices([True, False], weights=[(1 - 1/L), 1/L])[0]  # Vers un honeypot avec proba 1 - 1/L, et 1/l pour continuer sur le bon chemin
+        if is_going_in_honeypot:  # Si on se dirige vers un honeypot
+            return State(s.Y +1, 1, 0)  # On incrémente Y et chi passe à 1
+        # Sinon on continue vers la cible
+        if s.Y == M - 1:  # Si le microservice actuel est juste avant la cible
+            return State(s.Y +1, 0,1) #  On arrive à la cible
+        return State(s.Y +1, 0, 0)  # Sinon on incrémente Y et on reste sur le bon chemin
+    return State(s.Y +1, 1, 0) # Si on était déjà dans un honeypot on incrément juste Y
 
 
+# Fonction pour retourner au point de départ
 def go_back():
     return State(0,0,0)
 
 
-def belief(s):
-
-    if s.chi == 0 and s.T == 0:
-        return N1(s.Y) / (N1(s.Y) + N2(s.Y))
-    elif s.chi == 1 and s.T == 0:
-        return N2(s.Y) / (N1(s.Y) + N2(s.Y))
-
-    #return [(N1(s.Y) / (N1(s.Y) + N2(s.Y))), (N2(s.Y) / (N1(s.Y) + N2(s.Y)))]
+# Fonction pour générer un M suivant une loi de Poisson positive
+def sample_truncated_poisson(lam):
+    sample = np.random.poisson(lam=lam)
+    while sample < 1:
+        sample = np.random.poisson(lam=lam)
+    return sample
 
 
-def N1(k):
-    result = a_priori_distribution(0)
-    for i in range(0, k+1):
-        result *= a_priori_distribution(i)
-    return result
+# Fonction pour simuler les déplacements d'un attaquant utilisant un a priori sur M
+def simulate(episodes, sigma, lambda_, W, distrib="Poisson"):
+    print("Simulation : sigma = ", sigma)
+    rewards = np.zeros(episodes)
+    for i in range(0, episodes):
+        reward = 0
+        nb_step = 0  # Le nombre de pas pendant le cycle
+        nb_step_total = 0  # Le nombre de pas total
+        if distrib == "Poisson":
+            M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
+        else:
+            M = random.choices([1, 2, 3], weights=[1 / 3, 1 / 3, 1 / 3])[0]  # Pour distribution, uniforme
+        if M > sigma:  # Si M est plus grand que sigma, on n'atteindra jamais la cible
+            rewards[i] = -1 / (1 - gamma)  # La reward devient automatiquement -1 / (1 - gamma)
+            # print("Reward = ", rewards[i])
+            continue
+        #print("M = ", M)
+        state = State(0, 0, 0)
+        while state.T != 1:  # Tant que la cible n'est pas atteinte
+            if nb_step < sigma:  # On avance si on a fait moins de sigma déplacement
+                state = go_forward(state, M)
+                nb_step += 1
+                nb_step_total += 1
+            else:  # Sinon on revient au point de départ
+                state = go_back()
+                nb_step = 0
+                nb_step_total += 1
+
+        # print("nb_step_total = ", nb_step_total)
+        for j in range(0, nb_step_total - 1):  # Calcul de la reward
+            reward += -gamma ** j
+        reward += W * gamma ** (nb_step_total - 1)
+
+        rewards[i] = reward
+        # print("Reward = ", rewards[i])
+    return rewards
 
 
-def N2(k):
-    result = 0
-    result2 = 1
-    for i in range(0, k):
-        result1 = (L-1)*L**i
-        for j in range(0, k-i):
-            result2 *= a_priori_distribution(j)
-        result += result1*result2
-    return result
+# Fonction pour simuler episodes fois et faire le moyenne des rewards
+def simu_for_threshold(episodes, sigmas, lambda_, W, distrib="Poisson"):
+    all_rewards = np.zeros(len(sigmas))
+    for sigma in sigmas:
+        rewards = simulate(episodes, sigma, lambda_, W, distrib)  # Appele de la fonction pour simuler episodes fois une attaque
+        all_rewards[sigma - 1] = np.mean(rewards)  # On prend la moyenne
+    return all_rewards
 
 
-def value_function(s):
-    gamma = 0.9995
-    if s.chi == 0:
-        s2 = State(s.Y, 1, 0)
-    else:
-        s2 = State(s.Y, 0, 0)
-
-    #value = (belief(s)*-1 + belief(s2)*-1) + gamma*(a_priori_distribution(s.Y)*111+1256)
-
-
-def a_priori_distribution(M_conject, mean, std, k):
-    #M_conject = 10
-    #mean = M_conject/2
-    #std = 1
-
-    # Définir les paramètres de la distribution tronquée
-    a = (0 - mean) / std  # limite inférieure standardisée
-    b = (M_conject - mean) / std  # limite supérieure standardisée
-
-    # Calcul de la probabilité que M dépasse k
-    probability_M_gt_k = 1 - truncnorm.cdf(k, a, b, loc=mean, scale=std)
+# Fonction pour récupérer le sigma optimal pour un lambda donné
+def optimal_sigma_for_threshold(episodes, sigmas, lambda_, W, distrib="Poisson"):
+    all_rewards = {}
+    for sigma in sigmas:
+        rewards = simulate(episodes, sigma, lambda_, W, distrib)
+        all_rewards[sigma] = np.mean(rewards)
+    print(all_rewards)
+    return max(all_rewards, key=all_rewards.get)
 
 
-    #print(f"For k : {k}, Pr = {probability_M_gt_k}")
-
-    return probability_M_gt_k
-
-
-def poisson_survie(lambda_, valeur):
-    return np.exp(-lambda_) * sum((lambda_ ** k) / math.factorial(k) for k in range(valeur + 1))
-
-
-def poisson_positive_survie(lambda_, valeur):
-    #return sum((lambda_**k) / ((math.exp(lambda_) -1) * math.factorial(k)) for k in range(valeur + 1) )
-    proba_zero = poisson.pmf(0, lambda_)
-    return (poisson.cdf(valeur, lambda_)) / (1 - proba_zero)
-
-
-def poisson_truncated_pmf(x, lamb):
-    if x == 0:
-        return 0
-    return (lamb ** x) / ((math.exp(lamb) - 1) * math.factorial(x))
-
-def poisson_truncated_cdf(k, lamb):
-    cdf = 0
-    for x in range(1, k + 1):
-        cdf += poisson_truncated_pmf(x, lamb)
-    return cdf
-
-
-def get_M_From_Poisson(lambda_):
-    # Générer une seule valeur suivant la loi de Poisson
-    M = np.random.poisson(lambda_)
-    #print('M =', M)
-    # Calculer la probabilité P(X>=valeur)
-    #probabilite = 1 - poisson_survie(lambda_, M)
-    #print(probabilite)
-
-    return M
-
-
-def a(sigma):
-    return -gamma * (1 - gamma ** (sigma + 1)) / (1 - gamma)
-
-
-def plot_graph(all_evolution_reward, type_distrib):
-    # Affichage du graphique avec des améliorations
-    plt.figure(figsize=(12, 6))
-    #markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p']
-    #colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'orange']
-    markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h', 'H', '+', 'x', '|', '_']
-    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'orange', 'purple', 'pink', 'brown', 'olive', 'cyan', 'gray', 'lime']
-
-    if type_distrib == 'Poisson':
-        param = 'lambda'
-    else:
-        param = 'std'
-    for idx, evolution_reward in enumerate(all_evolution_reward):
-        plt.plot(range(1, 15), evolution_reward, label=param + f'= {idx + 2}', marker=markers[idx % len(markers)],
-                 color=colors[idx % len(colors)])
-    plt.xlabel('Sigma')
-    plt.ylabel('Reward')
-    plt.title('Evolution de la reward pour différentes valeurs du paramètre ' + param + ', ' + type_distrib)
+# Fonction pour créer le graphique de l'évolution de la reward de la simulation et de la formule
+def plot_rewards(all_rewards, lambda_):
+    id = 0
+    for reward in all_rewards:
+        if id == 0:
+            label = "Simulation"
+        else:
+            label = "Formule"
+        plt.plot(sigmas, reward, marker='o', label=label)
+        id +=1
+    plt.title(f"Evolution des rewards selon sigma (lambda = {lambda_})")
+    plt.xlabel("Sigma")
+    plt.ylabel("Reward")
+    plt.grid()
     plt.legend()
-    plt.grid(True)
     plt.show()
 
-def plot_sub_graphics(all_evolution_reward):
-    global evolution_reward
-    # Affichage des sous-graphiques
-    fig, axes = plt.subplots(2, 4, figsize=(20, 10), sharey=True)
-    markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p']
-    colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'orange']
-    for idx, (ax, evolution_reward) in enumerate(zip(axes.flatten(), all_evolution_reward)):
-        ax.plot(range(1, 10), evolution_reward, label=f'lambda = {idx + 2}', marker=markers[idx % len(markers)],
-                color=colors[idx % len(colors)])
-        ax.set_title(f'lambda = {idx + 2}')
-        ax.set_xlabel('Sigma')
-        ax.grid(True)
-    axes[0, 0].set_ylabel('Reward')
-    axes[1, 0].set_ylabel('Reward')
-    fig.suptitle('Evolution de la reward pour différentes valeurs de lambda')
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+
+# Fonction pour calculer la reward moyenne suivant la formule de l'article
+def mean_reward(sigma, lambda_, W, distrib='Poisson'):
+    somme = 0
+    proba = [0, 1/3, 1/3, 1/3, 0, 0, 0, 0, 0, 0, 0, 0, 0]  # Distribution uniforme de support 3
+    m = 1
+
+    while m <= sigma:
+        if distrib == 'Poisson':
+            beta_m = (np.exp(-lambda_) * (lambda_ ** m) / math.factorial(m))
+        else:
+            beta_m = proba[m]
+        somme += ((L**(-m) * gamma**m) / (1 - (1 - L**(-m))* gamma**(sigma+1))) * beta_m
+        m += 1
+
+    print("sigma = ", sigma, "somme = ", somme)
+    reward = -(1 / (1 - gamma)) + (W + (1 / (1 - gamma))) * somme
+
+    #print("Reward formule = ", reward)
+
+    return reward
+
+
+# Fonction permettant d'appeler les fonctions pour simuler et calculer la reward moyenne avec la formule pour ensuite les comparer
+def compare_simulation_formula(episodes, sigmas, lambda_, W):
+    all_rewards_simu = simu_for_threshold(episodes, sigmas, lambda_, W)
+    all_rewards_formula = np.zeros(len(sigmas))
+    for sigma in sigmas:
+        all_rewards_formula[sigma - 1] = mean_reward(sigma, lambda_, W)
+    all_rewards = [all_rewards_simu, all_rewards_formula]
+    # for i in range(0, len(all_rewards_simu)):
+    #   print("ratio = ", all_rewards_simu[i]/all_rewards_formula[i])
+    plot_rewards(all_rewards, lambda_)
+
+
+#  Fonction pour calculer et afficher les sigmas optimaux pour chaque lambda
+def find_optimal_sigmas(episodes, sigmas, all_lambdas, W):
+    all_optimal_sigma = []
+    for lambda_ in all_lambdas:
+        print('lambda = ', lambda_)
+        all_optimal_sigma.append(optimal_sigma_for_threshold(episodes, sigmas, lambda_, W))
+
+    print(all_optimal_sigma)
+
+    plt.plot(all_lambdas, all_optimal_sigma, marker='o')
+    plt.title(f"Evolution du sigma optimal selon lambda")
+    plt.xlabel("Lambda")
+    plt.ylabel("Sigma")
+    plt.grid()
+    plt.show()
+
+
+# Fonction pour calculer P(M>k) suivant une loi de Poisson
+def probability_M_greater_k(M, k, lambda_, distrib="Poisson"):
+    proba = 0
+    if distrib == "Poisson":
+        for i in range(0, k):
+            proba += (np.exp(-lambda_) * (lambda_ ** i) / math.factorial(i))
+
+    return 1 - proba
+
+
+# Fonction pour simuler une politique donnée se servant d'une distribution a priori donné
+def simulate_policy(episodes, all_lambdas, W, distrib, policy):
+    all_rewards = np.zeros(len(all_lambdas))
+    probabilities_to_return = [0.38, 0.3, 0.2, 0.2, 0.17, 0.17, 0.14, 0.13, 0.11, 0.1]  # Calculer avec les fonctions calculate_optimal_p et find_optimal_p (10 000 episodes)
+    for lambda_ in all_lambdas:
+        print("Simulation : lambda = ", lambda_)
+        rewards = np.zeros(episodes)
+        for i in range(0, episodes):
+            # print("episode : ", i)
+            reward = 0
+            nb_step = 0  # Nombre de pas pendant ce cycle
+            nb_step_total = 0  # Nombre de pas total
+            if distrib == "Poisson":
+                M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
+            # print("M = ", M)
+            state = State(0, 0, 0)
+            is_going_back = False
+            while state.T != 1 and nb_step_total < 1e5:  # à voir par rapport à la limitation
+                if state.Y > 0:
+                    if policy == "mixte":
+                        # print("proba de retour = ", 1 - probability_M_greater_k(M, nb_step, lambda_))
+                        is_going_back = random.choices([True, False],
+                                                       weights=[1 - probability_M_greater_k(M, nb_step, lambda_),
+                                                                probability_M_greater_k(M, nb_step, lambda_)])[0]
+                    elif policy == "uniforme":
+                        p = probabilities_to_return[lambda_-1]
+                        is_going_back = random.choices([True, False],
+                                                       weights=[p,
+                                                               1 - p])[0]
+                if is_going_back and nb_step > 0:
+                    state = go_back()
+                    nb_step = 0
+                    nb_step_total += 1
+                    is_going_back = False
+                else:
+                    state = go_forward(state, M)
+                    nb_step += 1
+                    nb_step_total += 1
+
+            # print("nb_step_total = ", nb_step_total)
+            for j in range(0, nb_step_total - 1):
+                reward += -gamma ** j
+            if state.T == 1:
+                reward += W * gamma ** (nb_step_total - 1)
+            else:
+                reward += -gamma ** (nb_step_total - 1)
+
+            rewards[i] = reward
+            # print("pas total = ", nb_step_total)
+            # print("Reward = ", rewards[i])
+        all_rewards[lambda_ - 1] = np.mean(rewards)
+
+    return all_rewards
+
+
+# Fonction pour calculer l'ensemble des rewards pour chaques probabilités de retour pour chaque lambda
+def calculate_optimal_p(episodes, all_lambdas, W, distrib, policy):
+    #all_rewards = np.zeros(len(all_lambdas))
+    rewards_for_p = {}
+    for lambda_ in all_lambdas:
+        all_p = np.arange(0.01, 1 / lambda_ + 0.01, 0.01)
+        print("Simulation : lambda = ", lambda_)
+        rewards = np.zeros(episodes)
+        for p in all_p:
+            print(p)
+            for i in range(0, episodes):
+                # print("episode : ", i)
+                reward = 0
+                nb_step = 0  # Nombre de pas pendant le cycle
+                nb_step_total = 0  # Nombre de pas total
+                if distrib == "Poisson":
+                    M = sample_truncated_poisson(lambda_)  # Pour distribution Poisson
+                # print("M = ", M)
+                state = State(0, 0, 0)
+                is_going_back = False
+                while state.T != 1 and nb_step_total < 1e5:  # à voir par rapport à la limitation
+                    if state.Y > 0:
+                        if policy == "mixte":
+                            # print("proba de retour = ", 1 - probability_M_greater_k(M, nb_step, lambda_))
+                            is_going_back = random.choices([True, False],
+                                                           weights=[1 - probability_M_greater_k(M, nb_step, lambda_),
+                                                                    probability_M_greater_k(M, nb_step, lambda_)])[0]
+                        elif policy == "uniforme":
+                            #probability_to_return = 1 / lambda_
+                            is_going_back = random.choices([True, False],
+                                                           weights=[p,
+                                                                   1 - p])[0]
+                    if is_going_back and nb_step > 0:
+                        state = go_back()
+                        nb_step = 0
+                        nb_step_total += 1
+                        is_going_back = False
+                    else:
+                        state = go_forward(state, M)
+                        nb_step += 1
+                        nb_step_total += 1
+
+
+                # print("nb_step_total = ", nb_step_total)
+                for j in range(0, nb_step_total - 1):
+                    reward += -gamma ** j
+                if state.T == 1:
+                    reward += W * gamma ** (nb_step_total - 1)
+                else:
+                    reward += -gamma ** (nb_step_total - 1)
+
+                rewards[i] = reward
+                # print("pas total = ", nb_step_total)
+                # print("Reward = ", rewards[i])
+            #all_rewards[lambda_ - 1] = np.mean(rewards)
+            rewards_for_p[(lambda_, p )] = np.mean(rewards)
+    return rewards_for_p
+
+
+#  Fonction pour trouver les probabilités de retour optimales
+def find_optimal_p(data):
+    # Dictionnaire pour stocker les résultats
+    max_rewards = {}
+
+    # Parcourir le dictionnaire
+    for (lambda_, p), reward in data.items():
+        if lambda_ not in max_rewards:
+            max_rewards[lambda_] = (p, reward)
+        else:
+            current_max_p, current_max_reward = max_rewards[lambda_]
+            if reward > current_max_reward:
+                max_rewards[lambda_] = (p, reward)
+
+    # Afficher les résultats
+    for lambda_, (p, reward) in max_rewards.items():
+        print(f"Pour lambda = {lambda_}, la valeur maximale de reward est {reward} avec p = {p}")
+
+# Fonction pour générer un graphique avec plusieurs politiques
+def compare_policies(policies, rewards):
+    for i in range(len(policies)):
+        plt.plot(all_lambdas, rewards[i], marker='o', label=policies[i])
+    plt.title(f"Evolution de la reward optimal selon lambda")
+    plt.xlabel("Lambda")
+    plt.ylabel("Reward")
+    plt.grid()
+    plt.legend()
     plt.show()
 
 
 if __name__ == '__main__':
 
-    """
-    rewards_total = np.zeros(10 - k_max)
-    lower_bound = 1
-    upper_bound = 10
-    lambda_param = 0.5
+    episodes = 1000
+    sigmas = [1, 2, 3, 4, 5, 6, 7]
+    #lambda_ = 8
+    all_lambdas = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    sigmas_optimal = [4, 5, 5, 6, 7, 7, 7, 7, 7, 8]
+    W = 1e3
 
-    x = np.linspace(lower_bound, upper_bound, 1000)
-    pdf_exponential = pdf_normalized(x, lambda_param)
+    i = 0
+    rewards_threshold = np.zeros(len(all_lambdas))
+    for lambda_ in all_lambdas:
+        print("Simulation: lambda=", lambda_)
+        rewards_threshold[i] = np.mean(simulate(episodes, sigmas_optimal[i], lambda_, W, distrib="Poisson"))
+        i += 1
 
-    for i in range (k_max, 10):
-        rewards_k = np.zeros(10)
-        print("K_max = ", i)
+    #compare_simulation_formula(episodes, sigmas, lambda_, W)
 
-        for j in range(0, 10):
-            M = get_M_from_exponential_distribution(x, pdf_exponential)
-            print("itération n°", j, "M = ", M)
+    #find_optimal_sigmas(episodes, sigmas, all_lambdas, W)
 
-            episodes = 1000
-            all_values = np.zeros(episodes)
-            epsilon = 0.09
+    distrib = "Poisson"
+    policies = ["mixte", 'uniforme']
+    all_rewards = []
+    for policy in policies:
+        all_rewards.append(simulate_policy(episodes, all_lambdas, W, distrib, policy))
 
-            for episode in range(0, episodes):
-                nb_step = 0
-                nb_step_total = 0
-                s = State(0, 0, 0)
-                is_going_forward = True
-                s = go_forward(s,M)
-                nb_step += 1
-                nb_step_total += 1
-                while s.T != 1 and nb_step_total < 1e5:
-                    #print(s.Y, s.chi, s.T)
-                    if nb_step < i:
-                        weights = [1-epsilon, epsilon]
-                    else:
-                        weights = [epsilon, 1-epsilon]
-                    is_going_forward = random.choices([True, False], weights=weights)[0]
-                    if is_going_forward:
-                        s = go_forward(s,M)
-                        nb_step += 1
-                    else:
-                        s = go_back()
-                        nb_step = 0
+    policies.append("seuil")
+    all_rewards.append(rewards_threshold)
 
+    compare_policies(policies=policies, rewards=all_rewards)
 
-                #print('step total = ', nb_step_total)
-                reward = -1 * (nb_step_total - 1)
-                if s.T == 1:
-                    reward += 1e4
-                all_values[episode] = reward
-                #print("itération ", i, "terminée")
-
-            rewards_k[j] = np.mean(all_values)
-            #print(np.mean(all_values))
-            #print(belief(State(2,0,0)))
-
-        rewards_total[i-k_max] = np.mean(rewards_k)
-
-    # Indices pour les valeurs de k
-    indices = np.arange(k_max, 10)
-
-    # Création du graphique
-    plt.plot(indices, rewards_total)
-    plt.xlabel('Valeur de k')
-    plt.ylabel('Récompenses moyennes')
-    plt.title('Récompenses moyennes en fonction de la valeur de k')
-    plt.grid(True)
-    plt.show()
-    """
-
-    """
-    episodes = 10000
-
-    epsilon = 0.01
-
-    reward_comparison = []
-
-    for t in range(0, 2):
-        print(f"t = {t}")
-        reward_for_all_sigma = np.zeros(12)
-        for sigma in range(3, 15):
-            print(f"sigma = {sigma}")
-            all_values = np.zeros(episodes)
-            M = 4
-
-            all_reward = np.zeros(episodes)
-
-            nb_pas_total = np.zeros(episodes)
-
-            for episode in range(0, episodes):
-                nb_pas = 0
-                nb_step = 0
-                nb_step_total = 0
-                s = State(0, 0, 0)
-                s = go_forward(s, M)
-                nb_step += 1
-                nb_step_total += 1
-                while s.T != 1 and nb_step_total < 1e5:
-                    if t == 0: # determinist
-                    # print(s.Y, s.chi, s.T)
-                        if nb_step < sigma:
-                            s = go_forward(s, M)
-                            nb_step += 1
-                            nb_step_total +=1
-                        else:
-                            s = go_back()
-                            nb_step = 0
-                            nb_pas += 1
-                            nb_step_total += 1
-                    else: # epsilon-greedy
-                        if nb_step < sigma:
-                            weights = [1 - epsilon, epsilon]
-                        else:
-                            weights = [epsilon, 1 - epsilon]
-
-                        is_going_forward = random.choices([True, False], weights=weights)[0]
-                        if is_going_forward:
-                            s = go_forward(s, M)
-                            nb_step += 1
-                            nb_step_total += 1
-                        else:
-                            s = go_back()
-                            nb_step = 0
-                            nb_pas += 1
-                            nb_step_total += 1
-
-
-                nb_pas_total[episode] = nb_pas
-
-                for i in range(0, nb_step_total-1):
-                   all_reward[episode] += -1 * gamma**i
-
-                all_reward[episode] += 1e5 * gamma**nb_step_total
-
-            reward_for_all_sigma[sigma-3] = np.mean(all_reward)
-
-        reward_comparison.append(reward_for_all_sigma)
-
-        #print(all_reward)
-
-        #print(reward)
-
-    print(reward_comparison)
-
-    # Tracer le graphique
-    sigmas = np.arange(3, 15)
-    plt.plot(sigmas, reward_comparison[0], marker='o', label='Politique déterministe')
-    plt.plot(sigmas, reward_comparison[1], marker='o', label='Politique Epsilon-Greedy')
-    plt.xlabel('Sigma')
-    plt.ylabel('Coût moyen')
-    plt.title('Comparaison du coût: Politique déterministe vs Epsilon-Greedy')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
-    #print(all_reward)
-    #print(np.mean(nb_pas_total))
-    #print(np.mean(all_reward))
-
-        # print(np.mean(all_values))
-        # print(belief(State(2,0,0)))
-    #reward_for_all_sigma[sigma - 2] = np.mean(all_values)
-    """
-
-    test = 0
-
-
-    #k_barre = 80
-
-    """
-    #----------Pour loi de Poisson--------------------
-    all_evolution_reward = []
-    for lambda_ in range(2, 10):
-        evolution_reward = []
-        #lambda_ = 3
-        #print(k_barre*(sigma+1)+M-1)
-        for sigma in range(1, 10):
-            test = 0
-            for k in range(1, (L**(lambda_))*(sigma+1)+lambda_-1):
-                #test += a(sigma) * gamma ** ((k-1) * (sigma + 1))
-                test -= gamma**k
-            #print('étape 1 : ', test)
-            #print('poisson : ', poisson_survie(lambda_, sigma))
-            test = (test + gamma**(k+1)) * (poisson_survie(lambda_, sigma))
-            #print('étape 2 : ', test)
-            test = test + (-gamma / (1- gamma))* (1 - poisson_survie(lambda_, sigma))
-            #print("étape 3 :", test)
-        #test = test * (poisson_survie(4, sigma))
-        #test += (-gamma ** (k_barre * (sigma + 1) + 1) * (1 - gamma ** (M - 1)) / (1 - gamma))
-            evolution_reward.append(test)
-            #print('sigma = ', sigma, 'reward = ', test)
-        all_evolution_reward.append(evolution_reward)
-
-    plot_graph(all_evolution_reward, 'Poisson')
-    """
-
-
-    # ----------Pour loi de Poisson v2--------------------
-    #M = 4
-    #p_success = 1 / L ** (M - 1)
-
-
-    all_evolution_reward = []
-    for lambda_ in range(2, 15):
-        print('lambda_ = ', lambda_)
-        g = 0
-        g1 = 0
-        g2 = 0
-        #M = 4
-        evolution_reward = []
-        # lambda_ = 3
-        # print(k_barre*(sigma+1)+M-1)
-        for sigma in range(1, 15):
-            #g1_temp = 0
-            #on s'en fiche de M
-            for m in range(2, sigma+1):
-                p_success = 1 / L ** (m - 1)
-                g1_temp = 0
-                for i in range(1, 10000):
-                    g1_temp += p_success * (1 - p_success) ** (i - 1) * (
-                                -(1 - gamma ** ((i - 1) * (sigma + 1) + m)) / (1 - gamma))
-                    # print(g1)
-                #g1_temp *= lambda_ ** m / math.factorial(m) * math.exp(-lambda_)
-                print('sigma = ', sigma, 'm = ', m, 'g1_temp = ', g1_temp)
-                #g1_temp *= (lambda_ ** m) / ((math.exp(lambda_) - 1) * math.factorial(m))
-                g1_temp *= poisson_truncated_pmf(m, lambda_)
-                print('sigma = ', sigma, 'm = ', m, 'g1_temp_v2 = ', g1_temp)
-                g1 += g1_temp
-
-                print('sigma = ', sigma, 'm = ', m, 'g1 = ', g1)
-
-            #g2 = -1 / (1 - gamma) * (1 - (poisson_survie(lambda_, sigma)))
-            #g2 = -1 / (1 - gamma) * (1 - (poisson_positive_survie(lambda_, sigma)))
-            g2 = -1 / (1 - gamma) * (1 - poisson_truncated_cdf(sigma, lambda_))
-
-            print('sigma = ', sigma, 'proba = ', 1 - poisson_truncated_cdf(sigma, lambda_))
-            #print('sigma = ', sigma, 'proba = ', 1 - poisson_survie(lambda_, sigma))
-
-            print('sigma = ', sigma, 'g2 = ', g2)
-
-            g = g1 + g2
-
-            print('sigma = ', sigma, 'g = ', g)
-            # print("étape 3 :", test)
-            # test = test * (poisson_survie(4, sigma))
-            # test += (-gamma ** (k_barre * (sigma + 1) + 1) * (1 - gamma ** (M - 1)) / (1 - gamma))
-            evolution_reward.append(g)
-            # print('sigma = ', sigma, 'reward = ', test)
-        all_evolution_reward.append(evolution_reward)
-
-    plot_graph(all_evolution_reward, 'Poisson')
-    #plot_sub_graphics(all_evolution_reward)
-
-    for i in range(len(all_evolution_reward)):
-        print('i = ', i)
-        print(max(all_evolution_reward[i]))
-
-
-    """
-    # ----------Pour loi de Poisson Positive--------------------
-    #M = 4
-    #p_success = 1 / L ** (M - 1)
-    all_evolution_reward = []
-    for lambda_ in range(2, 10):
-        evolution_reward = []
-        #lambda_ = 7
-        # print(k_barre*(sigma+1)+M-1)
-        for sigma in range(1, 10):
-            g1_temp = 0
-            for m in range(1, sigma):
-                p_success = 1 / L ** (m - 1)
-                for i in range(1, 1000):
-                    g1_temp += p_success * (1 - p_success) ** (i - 1) * (
-                            -(1 - gamma ** ((i - 1) * (sigma + 1) + m)) / (1 - gamma))
-                    # print(g1)
-                g1_temp *= (lambda_**m) / ((math.exp(lambda_) -1) * math.factorial(m))
-                g1 += g1_temp
-    
-            g2 = -1 / (1 - gamma) * (1 - (poisson_positive_survie(lambda_, sigma)))
-    
-            g = g1 + g2
-            # print("étape 3 :", test)
-            # test = test * (poisson_survie(4, sigma))
-            # test += (-gamma ** (k_barre * (sigma + 1) + 1) * (1 - gamma ** (M - 1)) / (1 - gamma))
-            evolution_reward.append(g)
-            # print('sigma = ', sigma, 'reward = ', test)
-        all_evolution_reward.append(evolution_reward)
 
     
-
-    plot_graph(all_evolution_reward, 'Poisson')
-    #plot_sub_graphics(all_evolution_reward)
-    """
-
-
-    """
-    #----------Pour loi Gaussienne--------------------
-    # Paramètres de la distribution
-    M_conject = 10
-    std = 1
-
-
-    all_evolution_reward = []
-    for mean in range(M_conject-1, 1, -1):
-
-
-        evolution_reward = []
-        # lambda_ = 3
-        # print(k_barre*(sigma+1)+M-1)
-        for sigma in range(1, 10):
-            test = 0
-            for k in range(1, (L ** (mean)) * (sigma + 1) + mean - 1):
-                # test += a(sigma) * gamma ** ((k-1) * (sigma + 1))
-                test -= gamma ** k
-            # print('étape 1 : ', test)
-            # print('poisson : ', poisson_survie(lambda_, sigma))
-            test = (test + gamma**(k+1)) * (1 - a_priori_distribution(M_conject, mean, std, sigma))
-            # print('étape 2 : ', test)
-            test = test + (-gamma / (1 - gamma)) * a_priori_distribution(M_conject, mean, std, sigma)
-            # print("étape 3 :", test)
-            # test = test * (poisson_survie(4, sigma))
-            # test += (-gamma ** (k_barre * (sigma + 1) + 1) * (1 - gamma ** (M - 1)) / (1 - gamma))
-            evolution_reward.append(test)
-            # print('sigma = ', sigma, 'reward = ', test)
-        all_evolution_reward.append(evolution_reward)
     
-
-    plot_graph(all_evolution_reward, 'Gaussienne')
     """
+    reward_for_p = calculate_optimal_p(episodes, all_lambdas, W,"Poisson", 'uniforme')
 
+    print(reward_for_p)
+
+    print(find_optimal_p(reward_for_p))
+
+    
+    Pour lambda = 1, la valeur maximale de reward est 909.0988826002067 avec p = 0.38
+    Pour lambda = 2, la valeur maximale de reward est 778.9427510508276 avec p = 0.3
+    Pour lambda = 3, la valeur maximale de reward est 613.8007214506345 avec p = 0.2
+    Pour lambda = 4, la valeur maximale de reward est 434.1678062737107 avec p = 0.2
+    Pour lambda = 5, la valeur maximale de reward est 269.33658064395246 avec p = 0.17
+    Pour lambda = 6, la valeur maximale de reward est 139.2502551808424 avec p = 0.17
+    Pour lambda = 7, la valeur maximale de reward est 32.58830612730737 avec p = 0.14000000000000002
+    Pour lambda = 8, la valeur maximale de reward est -48.42620413972533 avec p = 0.12
+    Pour lambda = 9, la valeur maximale de reward est -104.43532486130091 avec p = 0.12
+    Pour lambda = 10, la valeur maximale de reward est -140.8995224765586 avec p = 0.09999999999999999
     """
-
-    # ----------Pour loi Gaussienne v2--------------------
-    # Paramètres de la distribution
-    M_conject = 10
-    mean = round(M_conject/2)
-    #std = 1
-
-    all_evolution_reward = []
-    #for mean in range(M_conject - 1, 1, -1):
-    for std in range(1, 10):
-
-        lim1 = (0 - mean) / std  # limite inférieure standardisée
-        lim2 = (10 - mean) / std  # limite supérieure standardisée
-
-        # Créer la distribution normale tronquée
-        truncated_normal = truncnorm(lim1, lim2, loc=mean, scale=std)
-
-        evolution_reward = []
-        # lambda_ = 3
-        # print(k_barre*(sigma+1)+M-1)
-        for sigma in range(1, 10):
-            g1_temp = 0
-            for m in range(1, sigma):
-                for i in range(1, 1000):
-                    g1_temp += p_success * (1 - p_success) ** (i - 1) * (
-                            -(1 - gamma ** ((i - 1) * (sigma + 1) + M)) / (1 - gamma))
-                    # print(g1)
-                g1_temp *= truncated_normal.pdf(sigma)
-                g1 += g1_temp
-
-            g2 = -1 / (1 - gamma) * (a_priori_distribution(M_conject, mean, std, sigma))
-
-            g = g1 + g2
-            evolution_reward.append(g)
-            # print('sigma = ', sigma, 'reward = ', test)
-        all_evolution_reward.append(evolution_reward)
-
-    plot_graph(all_evolution_reward, 'Gaussienne')
-
-    """
-
-
-
-    """
-    #----------Pour loi Uniforme--------------------
-    all_evolution_reward = []
-    for M_conject in range(4, 18, 2):
-        mean = round(M_conject / 2)
-        probability = 1 / M_conject
-        evolution_reward = []
-        # lambda_ = 3
-        # print(k_barre*(sigma+1)+M-1)
-        for sigma in range(1, 10):
-            test = 0
-            for k in range(1, (L ** (mean)) * (sigma + 1) + mean - 1):
-                # test += a(sigma) * gamma ** ((k-1) * (sigma + 1))
-                test -= gamma ** k
-            # print('étape 1 : ', test)
-            # print('poisson : ', poisson_survie(lambda_, sigma))
-            test = (test + gamma**(k+1)) * probability
-            # print('étape 2 : ', test)
-            test = test + (-gamma / (1 - gamma)) * (1 - probability)
-            # print("étape 3 :", test)
-            # test = test * (poisson_survie(4, sigma))
-            # test += (-gamma ** (k_barre * (sigma + 1) + 1) * (1 - gamma ** (M - 1)) / (1 - gamma))
-            evolution_reward.append(test)
-            # print('sigma = ', sigma, 'reward = ', test)
-        all_evolution_reward.append(evolution_reward)
-
-    plot_graph(all_evolution_reward, 'Uniforme')
-    """
-
-
-
-
-
-
-
-
-
-
-
-
 
 
