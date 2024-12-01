@@ -18,3 +18,10 @@ Le fichier **stats.py** permet quant à lui de réaliser des calculs statistique
 
 **gurobi.py** et **scipy_optimize.py** sont utilisés pour réaliser des calculs d'optimisations.
 
+## POMDP
+
+Cette partie devait traiter l'implémentation d'un POMDP afin de résoudre notre problème dans un système où les états sont cachés (l'attaquant ne sait pas s'il est sur le bon chemin ou pas).
+
+Nous avons tout d'abord étudié la croyance de l'attaquant selon son avancée (voir fichier **belief.py**). Nous avons ensuité étudié la fonction de valeur pour un POMDP et avons déduit une politique jugée optimale mais qui reste à prouver en résolvant la fonction de valeur mais dont les simulations réalisées avec le fichier **simulation.py** semblent laisser le penser.
+
+Plus de détail dans le rapport.
